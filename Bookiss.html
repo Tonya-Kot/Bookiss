@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мой книжный трекер</title>
+
+    <!-- Мета‑теги для мобильных устройств -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        /* Общие стили */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+                /* Стили для авторизации */
+
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .auth-container h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        /* Стили для трекера */
+        .tracker-container {
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .btn-logout {
+            background-color: #f44336;
+        }
+
+        .btn-add {
+            background-color: #2196F3;
+            margin-bottom: 20px;
+        }
+
+        /* Стили для формы добавления книги */
+        .add-book-form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .add-book-form h2 {
+            margin-bottom: 20px;
+        }
+
+        /* Общие стили для форм */
+        input[type="text"],
+        input[type="password"],
+        input[type="date"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Стили для рейтинга */
+        .stars {
+            display: flex;
+            gap: 5px;
+        }
+
+        .stars input {
+            display: none;
+        }
+
+        .stars label {
+            font-size: 24px;
+            color: #ddd;
+            cursor: pointer;
+        }
+
+        .stars input:checked ~ label {
+            color: #ff9800;
+        }
+
+        .stars label:hover,
+        .stars label:hover ~ label {
+            color: #ff9800;
+        }
+
+        /* Стиль для элементов книг */
+        .book-item {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* Адаптация под мобильные устройства */
+        @media (max-width: 480px) {
+            .auth-container, .tracker-container {
+                margin: 5px;
+                padding: 10px;
+            }
+            input, button, select, textarea {
+                font-size: 16px;
+                padding: 14px;
+            }
+            .stars label {
+                font-size: 28px;
+}
+        }
+    </style>
+</head>
+<body>
+     <!-- Форма авторизации -->
+    <div class="auth-container">
+        <h1>Вход в книжный трекер</h1>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Имя пользователя" required>
+            <input type="password" id="password" placeholder="Пароль" required>
+            <button type="submit">Войти</button>
+            <p style="margin-top: 15px; text-align: center;">
+                Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a>
+            </p>
+        </form>
+    </div>
+
+    <!-- Форма регистрации (изначально скрыта) -->
+    <div class="auth-container" id="registerForm" style="display: none;">
+        <h1>Регистрация</h1>
+        <form>
+            <input type="text" placeholder="Имя пользователя" required>
+            <input type="email" placeholder="Email" required>
+            <input type="password" placeholder="Пароль" required>
+            <input type="password" placeholder="Подтвердите пароль" required>
+            <button type="submit">Зарегистрироваться</button>
+            <p style="margin-top: 15px; text-align: center;">
+                Уже есть аккаунт? <a href="#" id="showLogin">Войти</a>
+            </p>
+        </form>
+    </div>
+
+    <!-- Основной интерфейс трекера (изначально скрыт) -->
+    <div class="tracker-container" id="trackerInterface" style="display: none;">
+        <header>
+            <h1>Мой книжный трекер</h1>
+            <button class="btn-logout" id="logoutBtn">Выйти</button>
+        </header>
+
+        <button class="btn-add" id="showAddForm">Добавить книгу</button>
+
+        <!-- Форма добавления книги (изначально скрыта) -->
+        <div class="add-book-form" id="addBookForm" style="display: none;">
+            <h2>Добавить новую книгу</h2>
+            <form id="bookForm">
+                <input type="text" id="bookTitle" placeholder="Название книги" required>
+                <input type="text" id="bookAuthor" placeholder="Автор" required>
+                <input type="date" id="bookDate">
+                <select id="bookGenre">
+                    <option value="" disabled selected>Выберите жанр</option>
+            <option value="fiction">Художественная литература</option>
+            <option value="non-fiction">Научно-популярная</option>
+            <option value="fantasy">Фэнтези</option>
+            <option value="sci-fi">Научная фантастика</option>
+            <option value="other">Другое</option>
+                </select>
+                <p>Оценка:</p>
+                <div class="stars">
+            <input type="radio" id="star5" name="rating" value="5">
+            <label for="star5">★</label>
+            <input type="radio" id="star4" name="rating" value="4">
+            <label for="star4">★</label>
+            <input type="radio" id="star3" name="rating" value="3">
+            <label for="star3">★</label>
+            <input type="radio" id="star2" name="rating" value="2">
+            <label for="star2">★</label>
+            <input type="radio" id="star1" name="rating" value="1">
+            <label for="star1">★</label>
+                </div>
+                <textarea id="bookNotes" placeholder="Примечания (опционально)" rows="4"></textarea>
+                <button type="submit">Сохранить книгу</button>
+            </form>
+        </div>
+
+        <!-- Список книг (изначально пустой) -->
+        <div id="booksList">
+            <h2>Мои книги</h2>
+            <div id="booksContainer">
+                <!-- Книги будут добавляться сюда динамически -->
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div id="stats" style="margin-top: 30px; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+            <h2>Статистика чтения</h2>
+            <p>Всего прочитано книг: <strong id="totalBooks">0</strong></p>
+            <p>Средний рейтинг: <strong id="averageRating">0.0</strong>/5</p>
+	    <p>Самый популярный жанр: <strong id="popularGenre">Нет данных</strong></p>
+        </div>
+    </div>
+
+    <script>
+        // Service Worker для офлайн-режима
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                console.log('Service Worker зарегистрирован:', registration);
+            })
+            .catch(error => {
+                console.error('Ошибка регистрации Service Worker:', error);
+            });
+        });
+    }
+
+    // Манифест PWA (динамически создаём объект)
+    const manifest = {
+        "name": "Мой книжный трекер",
+        "short_name": "Книжный трекер",
+        "description": "Трекер прочитанных книг",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#f5f5f5",
+        "theme_color": "#4CAF50",
+        "orientation": "portrait"
+        // Иконки убираем — без них PWA всё равно работает
+    };
+
+    // Преобразуем манифест в строку и создаём Blob
+    const manifestJSON = JSON.stringify(manifest);
+    const blob = new Blob([manifestJSON], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+
+    // Создаём и подключаем <link rel="manifest">
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+
+    /* Ваш существующий JavaScript (логика приложения) */
+    let books = JSON.parse(localStorage.getItem('books')) || [];
+
+        // Переключение между формами авторизации и регистрации
+        document.getElementById('showRegister').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelector('.auth-container').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+        });
+
+        document.getElementById('showLogin').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('registerForm').style.display = 'none';
+            document.querySelector('.auth-container').style.display = 'block';
+        });
+
+        // Авторизация (упрощённая логика)
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            // Здесь будет проверка логина/пароля
+            document.querySelector('.auth-container').style.display = 'none';
+            document.getElementById('trackerInterface').style.display = 'block';
+            updateBooksList();
+            updateStats();
+        });
+
+        // Выход из системы
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            document.getElementById('trackerInterface').style.display = 'none';
+            document.querySelector('.auth-container').style.display = 'block';
+        });
+
+        // Показать форму добавления книги
+        document.getElementById('showAddForm').addEventListener('click', function() {
+            document.getElementById('addBookForm').style.display = 'block';
+        });
+
+        // Отправка формы добавления книги
+        document.getElementById('bookForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+            const date = document.getElementById('bookDate').value;
+            const genre = document.getElementById('bookGenre').value;
+            const rating = document.querySelector('input[name="rating"]:checked')?.value || 0;
+            const notes = document.getElementById('bookNotes').value;
+
+            if (title && author && genre) {
+                const newBook = {
+                    id: Date.now(),
+            title: title,
+            author: author,
+            date: date,
+            genre: genre,
+	    rating: parseInt(rating),
+            notes: notes
+                };
+
+                books.push(newBook);
+                localStorage.setItem('books', JSON.stringify(books));
+
+                // Очищаем форму
+                document.getElementById('bookForm').reset();
+                document.querySelectorAll('.stars input').forEach(input => input.checked = false);
+
+                // Скрываем форму и обновляем интерфейс
+                document.getElementById('addBookForm').style.display = 'none';
+                updateBooksList();
+                updateStats();
+            } else {
+                alert('Заполните все обязательные поля!');
+            }
+        });
+
+        // Функция обновления списка книг
+        function updateBooksList() {
+            const container = document.getElementById('booksContainer');
+            container.innerHTML = '';
+
+            if (books.length === 0) {
+                container.innerHTML = '<p style="text-align: center; margin: 2 Newton 0;">Пока нет добавленных книг. Добавьте первую книгу!</p>';
+                return;
+            }
+
+            books.forEach(book => {
+                const bookElement = document.createElement('div');
+                bookElement.className = 'book-item';
+
+                let dateDisplay = book.date ? new Date(book.date).toLocaleDateString('ru-RU') : 'Не указана';
+                let ratingDisplay = '';
+                for (let i = 1; i <= 5; i++) {
+                    ratingDisplay += i <= book.rating ? '★' : '☆';
+                }
+
+                bookElement.innerHTML = `
+                    <h3>${book.title}</h3>
+            <p>Автор: ${book.author}</p>
+            <p>Жанр: ${getGenreName(book.genre)}</p>
+            <p>Дата прочтения: ${dateDisplay}</p>
+            <div class="stars">
+                <span style="${book.rating > 0 ? 'color: #ff9800;' : ''}">${ratingDisplay}</span>
+                <small>(${book.rating}/5)</small>
+            </div>
+            ${book.notes ? `<p>Примечания: ${book.notes}</p>` : ''}
+                `;
+                container.appendChild(bookElement);
+            });
+        }
+
+        // Функция получения названия жанра
+        function getGenreName(genreCode) {
+            const genres = {
+                'fiction': 'Художественная литература',
+                'non-fiction': 'Научно-популярная',
+                'fantasy': 'Фэнтези',
+                'sci-fi': 'Научная фантастика',
+                'other': 'Другое'
+            };
+            return genres[genreCode] || genreCode;
+        }
+
+        // Функция обновления статистики
+        function updateStats() {
+            const totalBooks = books.length;
+            let totalRating = 0;
+            const genreCount = {};
+
+            books.forEach(book => {
+                totalRating += book.rating;
+                genreCount[book.genre] = (genreCount[book.genre] || 0) + 1;
+            });
+
+            const averageRating = totalBooks > 0 ? (totalRating / totalBooks).toFixed(1) : '0.0';
+            let popularGenre = 'Нет данных';
+
+            if (Object.keys(genreCount).length > 0) {
+                popularGenre = Object.keys(genreCount).reduce((a, b) =>
+                    genreCount[a] > genreCount[b] ? a : b
+                );
+                popularGenre = getGenreName(popularGenre);
+            }
+
+            document.getElementById('totalBooks').textContent = totalBooks;
+            document.getElementById('averageRating').textContent = averageRating;
+            document.getElementById('popularGenre').textContent = popularGenre;
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('trackerInterface').style.display === 'block') {
+                updateBooksList();
+                updateStats();
+            }
+        });
+    </script>
+</body>
+</html>
