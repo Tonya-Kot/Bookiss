@@ -163,6 +163,7 @@
 }
         }
     </style>
+
 </head>
 <body>
      <!-- Форма авторизации -->
@@ -252,7 +253,23 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+    import { initializeApp } from 'https://gstatic.com';
+    import { getFirestore, collection, addDoc, getDocs } from 'https://gstatic.com';
+
+    // ВСТАВЛЯЕМ НАСТРОЙКИ ТВОЕГО ПРОЕКТА
+    const firebaseConfig = {
+        apiKey: "AIzaSyAA2chnQ4pqbPt6WdLgHDr_N-zufuuNRc0",
+        authDomain: "bookiss-f28f8.firebaseapp.com",
+        projectId: "bookiss-f28f8",
+        storageBucket: "bookiss-f28f8.firebasestorage.app",
+        messagingSenderId: "1076774680447",
+        appId: "1:1076774680447:web:791b9499c7ef8271558c4a"
+        };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
         // Service Worker для офлайн-режима
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -290,8 +307,7 @@
     link.href = manifestURL;
     document.head.appendChild(link);
 
-    /* Ваш существующий JavaScript (логика приложения) */
-    let books = JSON.parse(localStorage.getItem('books')) || [];
+    let books = [];
 
         // Переключение между формами авторизации и регистрации
         document.getElementById('showRegister').addEventListener('click', function(e) {
