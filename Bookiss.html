@@ -163,7 +163,6 @@
 }
         }
     </style>
-
 </head>
 <body>
      <!-- Форма авторизации -->
@@ -253,266 +252,199 @@
         </div>
     </div>
 
-	<script type="module">
-	 // Импортируем официальные модули Firebase версии 10+
-	 import { initializeApp } from "https://gstatic.com";
-	 import { 
-	   getAuth, 
-	   createUserWithEmailAndPassword, 
-	   signInWithEmailAndPassword, 
-	   signOut, 
-	   onAuthStateChanged 
-	 } from "https://gstatic.com";
-	 import { 
-	   getFirestore, 
-	   collection, 
-	   addDoc, 
-	   getDocs, 
-	   query, 
-	   where 
-	 } from "https://gstatic.com";
-	
-	 // Импортируем конфигурацию из скрытого файла config.js
-	 import firebaseConfig from "./config.js";
-	
-	 // Инициализация Firebase
-	 const app = initializeApp(firebaseConfig);
-	 const auth = getAuth(app);
-	 const db = getFirestore(app);
-	
-	 // Переменные приложения
-	 let books = [];
-	 let currentUser = null;
-	
-	 // --- Service Worker и PWA ---
-	 if ('serviceWorker' in navigator) {
-	   window.addEventListener('load', () => {
-	     navigator.serviceWorker.register('/sw.js')
-	       .then(reg => console.log('Service Worker зарегистрирован:', reg))
-	       .catch(err => console.error('Ошибка Service Worker:', err));
-	   });
-	 }
-	
-	 const manifest = {
-	   "name": "Мой книжный трекер",
-	   "short_name": "Книжный трекер",
-	   "description": "Трекер прочитанных книг",
-	   "start_url": "/",
-	   "display": "standalone",
-	   "background_color": "#f5f5f5",
-	   "theme_color": "#4CAF50",
-	   "orientation": "portrait"
-	 };
-	 const manifestURL = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/json'}));
-	 const link = document.createElement('link');
-	 link.rel = 'manifest';
-	 link.href = manifestURL;
-	 document.head.appendChild(link);
-	
-	 // --- Навигация по формам интерфейса ---
-	 document.getElementById('showRegister').addEventListener('click', (e) => {
-	   e.preventDefault();
-	   document.querySelector('.auth-container').style.display = 'none';
-	   document.getElementById('registerForm').style.display = 'block';
-	 });
-	
-	 document.getElementById('showLogin').addEventListener('click', (e) => {
-	   e.preventDefault();
-	   document.getElementById('registerForm').style.display = 'none';
-	   document.querySelector('.auth-container').style.display = 'block';
-	 });
-	
-	 // --- Отслеживание состояния авторизации ---
-	 onAuthStateChanged(auth, async (user) => {
-	   if (user) {
-	     currentUser = user;
-	     // Переключаем интерфейс на трекер
-	     document.querySelector('.auth-container').style.display = 'none';
-	     document.getElementById('registerForm').style.display = 'none';
-	     document.getElementById('trackerInterface').style.display = 'block';
-	     // Загружаем книги текущего пользователя из Firestore
-	     await loadBooksFromFirestore();
-	   } else {
-	     currentUser = null;
-	     books = [];
-	     // Переключаем на окно входа
-	     document.getElementById('trackerInterface').style.display = 'none';
-	     document.querySelector('.auth-container').style.display = 'block';
-	   }
-	 });
-	
-	 // --- Регистрация нового пользователя ---
-	 document.getElementById('registerForm').querySelector('form').addEventListener('submit', async (e) => {
-	   e.preventDefault();
-	   const inputs = e.target.querySelectorAll('input');
-	   const email = inputs[1].value;
-	   const password = inputs[2].value;
-	   const confirmPassword = inputs[3].value;
-	
-	   if (password !== confirmPassword) {
-	     alert('Пароли не совпадают!');
-	     return;
-	   }
-	
-	   try {
-	     await createUserWithEmailAndPassword(auth, email, password);
-	     alert('Регистрация успешна!');
-	     e.target.reset();
-	   } catch (error) {
-	     alert('Ошибка регистрации: ' + error.message);
-	   }
-	 });
-	
-	 // --- Авторизация (Вход) ---
-	 document.getElementById('loginForm').addEventListener('submit', async (e) => {
-	   e.preventDefault();
-	   // Используем поле Имя пользователя как Email для Firebase Auth
-	   const email = document.getElementById('username').value;
-	   const password = document.getElementById('password').value;
-	
-	   try {
-	     await signInWithEmailAndPassword(auth, email, password);
-	     document.getElementById('loginForm').reset();
-	   } catch (error) {
-	     alert('Ошибка входа: ' + error.message);
-	   }
-	 });
-	
-	 // --- Выход из аккаунта ---
-	 document.getElementById('logoutBtn').addEventListener('click', async () => {
-	   try {
-	     await signOut(auth);
-	   } catch (error) {
-	     alert('Ошибка при выходе: ' + error.message);
-	   }
-	 });
-	
-	 // --- Добавление новой книги ---
-	 document.getElementById('showAddForm').addEventListener('click', () => {
-	   document.getElementById('addBookForm').style.display = 'block';
-	 });
-	
-	 document.getElementById('bookForm').addEventListener('submit', async (e) => {
-	   e.preventDefault();
-	   if (!currentUser) return;
-	
-	   const title = document.getElementById('bookTitle').value;
-	   const author = document.getElementById('bookAuthor').value;
-	   const date = document.getElementById('bookDate').value;
-	   const genre = document.getElementById('bookGenre').value;
-	   const rating = document.querySelector('input[name="rating"]:checked')?.value || 0;
-	   const notes = document.getElementById('bookNotes').value;
-	
-	   if (title && author && genre) {
-	     const newBook = {
-	       userId: currentUser.uid, // Привязываем книгу к текущему пользователю
-	       title: title,
-	       author: author,
-	       date: date,
-	       genre: genre,
-	       rating: parseInt(rating),
-	       notes: notes,
-	       createdAt: new Date().toISOString()
-	     };
-	
-	     try {
-	       // Сохраняем книгу в Firestore в коллекцию "books"
-	       await addDoc(collection(db, "books"), newBook);
-	       
-	       document.getElementById('bookForm').reset();
-	       document.querySelectorAll('.stars input').forEach(input => input.checked = false);
-	       document.getElementById('addBookForm').style.display = 'none';
-	       
-	       // Перезагружаем список
-	       await loadBooksFromFirestore();
-	     } catch (error) {
-	       alert('Ошибка сохранения в БД: ' + error.message);
-	     }
-	   } else {
-	     alert('Заполните все обязательные поля!');
-	   }
-	 });
-	
-	 // --- Загрузка данных из Firestore ---
-	 async function loadBooksFromFirestore() {
-	   if (!currentUser) return;
-	   try {
-	     // Запрашиваем только книги текущего пользователя
-	     const q = query(collection(db, "books"), where("userId", "==", currentUser.uid));
-	     const querySnapshot = await getDocs(q);
-	     
-	     books = [];
-	     querySnapshot.forEach((doc) => {
-	       books.push(doc.data());
-	     });
-	
-	     updateBooksList();
-	     updateStats();
-	   } catch (error) {
-	     console.error("Ошибка загрузки книг: ", error);
-	   }
-	 }
-	
-	 // --- Функции отображения интерфейса ---
-	 function updateBooksList() {
-	   const container = document.getElementById('booksContainer');
-	   container.innerHTML = '';
-	   if (books.length === 0) {
-	     container.innerHTML = '<p style="text-align: center; margin: 20px 0;">Пока нет добавленных книг. Добавьте первую книгу!</p>';
-	     return;
-	   }
-	   books.forEach(book => {
-	     const bookElement = document.createElement('div');
-	     bookElement.className = 'book-item';
-	     let dateDisplay = book.date ? new Date(book.date).toLocaleDateString('ru-RU') : 'Не указана';
-	     let ratingDisplay = '';
-	     for (let i = 1; i <= 5; i++) {
-	       ratingDisplay += i <= book.rating ? '★' : '☆';
-	     }
-	     bookElement.innerHTML = `
-	       <h3>${book.title}</h3>
-	       <p>Автор: ${book.author}</p>
-	       <p>Жанр: ${getGenreName(book.genre)}</p>
-	       <p>Дата прочтения: ${dateDisplay}</p>
-	       <div class="stars">
-	         <span style="${book.rating > 0 ? 'color: #ff9800;' : ''}">${ratingDisplay}</span>
-	         <small>(${book.rating}/5)</small>
-	       </div>
-	       ${book.notes ? `<p>Примечания: ${book.notes}</p>` : ''}
-	     `;
-	     container.appendChild(bookElement);
-	   });
-	 }
-	
-	 function getGenreName(genreCode) {
-	   const genres = {
-	     'fiction': 'Художественная литература',
-	     'non-fiction': 'Научно-популярная',
-	     'fantasy': 'Фэнтези',
-	     'sci-fi': 'Научная фантастика',
-	     'other': 'Другое'
-	   };
-	   return genres[genreCode] || genreCode;
-	 }
-	
-	 function updateStats() {
-	   const totalBooks = books.length;
-	   let totalRating = 0;
-	   const genreCount = {};
-	   books.forEach(book => {
-	     totalRating += book.rating;
-	     genreCount[book.genre] = (genreCount[book.genre] || 0) + 1;
-	   });
-	   const averageRating = totalBooks > 0 ? (totalRating / totalBooks).toFixed(1) : '0.0';
-	   let popularGenre = 'Нет данных';
-	   if (Object.keys(genreCount).length > 0) {
-	     popularGenre = Object.keys(genreCount).reduce((a, b) => genreCount[a] > genreCount[b] ? a : b);
-	     popularGenre = getGenreName(popularGenre);
-	   }
-	   document.getElementById('totalBooks').textContent = totalBooks;
-	   document.getElementById('averageRating').textContent = averageRating;
-	   document.getElementById('popularGenre').textContent = popularGenre;
-	 }
-	</script>
+    <script>
+        // Service Worker для офлайн-режима
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                console.log('Service Worker зарегистрирован:', registration);
+            })
+            .catch(error => {
+                console.error('Ошибка регистрации Service Worker:', error);
+            });
+        });
+    }
+
+    // Манифест PWA (динамически создаём объект)
+    const manifest = {
+        "name": "Мой книжный трекер",
+        "short_name": "Книжный трекер",
+        "description": "Трекер прочитанных книг",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#f5f5f5",
+        "theme_color": "#4CAF50",
+        "orientation": "portrait"
+        // Иконки убираем — без них PWA всё равно работает
+    };
+
+    // Преобразуем манифест в строку и создаём Blob
+    const manifestJSON = JSON.stringify(manifest);
+    const blob = new Blob([manifestJSON], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+
+    // Создаём и подключаем <link rel="manifest">
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+
+    /* Ваш существующий JavaScript (логика приложения) */
+    let books = JSON.parse(localStorage.getItem('books')) || [];
+
+        // Переключение между формами авторизации и регистрации
+        document.getElementById('showRegister').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelector('.auth-container').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+        });
+
+        document.getElementById('showLogin').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('registerForm').style.display = 'none';
+            document.querySelector('.auth-container').style.display = 'block';
+        });
+
+        // Авторизация (упрощённая логика)
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            // Здесь будет проверка логина/пароля
+            document.querySelector('.auth-container').style.display = 'none';
+            document.getElementById('trackerInterface').style.display = 'block';
+            updateBooksList();
+            updateStats();
+        });
+
+        // Выход из системы
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            document.getElementById('trackerInterface').style.display = 'none';
+            document.querySelector('.auth-container').style.display = 'block';
+        });
+
+        // Показать форму добавления книги
+        document.getElementById('showAddForm').addEventListener('click', function() {
+            document.getElementById('addBookForm').style.display = 'block';
+        });
+
+        // Отправка формы добавления книги
+        document.getElementById('bookForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+            const date = document.getElementById('bookDate').value;
+            const genre = document.getElementById('bookGenre').value;
+            const rating = document.querySelector('input[name="rating"]:checked')?.value || 0;
+            const notes = document.getElementById('bookNotes').value;
+
+            if (title && author && genre) {
+                const newBook = {
+                    id: Date.now(),
+            title: title,
+            author: author,
+            date: date,
+            genre: genre,
+	    rating: parseInt(rating),
+            notes: notes
+                };
+
+                books.push(newBook);
+                localStorage.setItem('books', JSON.stringify(books));
+
+                // Очищаем форму
+                document.getElementById('bookForm').reset();
+                document.querySelectorAll('.stars input').forEach(input => input.checked = false);
+
+                // Скрываем форму и обновляем интерфейс
+                document.getElementById('addBookForm').style.display = 'none';
+                updateBooksList();
+                updateStats();
+            } else {
+                alert('Заполните все обязательные поля!');
+            }
+        });
+
+        // Функция обновления списка книг
+        function updateBooksList() {
+            const container = document.getElementById('booksContainer');
+            container.innerHTML = '';
+
+            if (books.length === 0) {
+                container.innerHTML = '<p style="text-align: center; margin: 2 Newton 0;">Пока нет добавленных книг. Добавьте первую книгу!</p>';
+                return;
+            }
+
+            books.forEach(book => {
+                const bookElement = document.createElement('div');
+                bookElement.className = 'book-item';
+
+                let dateDisplay = book.date ? new Date(book.date).toLocaleDateString('ru-RU') : 'Не указана';
+                let ratingDisplay = '';
+                for (let i = 1; i <= 5; i++) {
+                    ratingDisplay += i <= book.rating ? '★' : '☆';
+                }
+
+                bookElement.innerHTML = `
+                    <h3>${book.title}</h3>
+            <p>Автор: ${book.author}</p>
+            <p>Жанр: ${getGenreName(book.genre)}</p>
+            <p>Дата прочтения: ${dateDisplay}</p>
+            <div class="stars">
+                <span style="${book.rating > 0 ? 'color: #ff9800;' : ''}">${ratingDisplay}</span>
+                <small>(${book.rating}/5)</small>
+            </div>
+            ${book.notes ? `<p>Примечания: ${book.notes}</p>` : ''}
+                `;
+                container.appendChild(bookElement);
+            });
+        }
+
+        // Функция получения названия жанра
+        function getGenreName(genreCode) {
+            const genres = {
+                'fiction': 'Художественная литература',
+                'non-fiction': 'Научно-популярная',
+                'fantasy': 'Фэнтези',
+                'sci-fi': 'Научная фантастика',
+                'other': 'Другое'
+            };
+            return genres[genreCode] || genreCode;
+        }
+
+        // Функция обновления статистики
+        function updateStats() {
+            const totalBooks = books.length;
+            let totalRating = 0;
+            const genreCount = {};
+
+            books.forEach(book => {
+                totalRating += book.rating;
+                genreCount[book.genre] = (genreCount[book.genre] || 0) + 1;
+            });
+
+            const averageRating = totalBooks > 0 ? (totalRating / totalBooks).toFixed(1) : '0.0';
+            let popularGenre = 'Нет данных';
+
+            if (Object.keys(genreCount).length > 0) {
+                popularGenre = Object.keys(genreCount).reduce((a, b) =>
+                    genreCount[a] > genreCount[b] ? a : b
+                );
+                popularGenre = getGenreName(popularGenre);
+            }
+
+            document.getElementById('totalBooks').textContent = totalBooks;
+            document.getElementById('averageRating').textContent = averageRating;
+            document.getElementById('popularGenre').textContent = popularGenre;
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('trackerInterface').style.display === 'block') {
+                updateBooksList();
+                updateStats();
+            }
+        });
+    </script>
 </body>
 </html>
